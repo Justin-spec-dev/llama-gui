@@ -9,7 +9,6 @@ description = "A Windows GUI launcher for llama-server"
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.5",
-    "qdarkstyle>=3.2",
     "pyqtgraph>=0.13",
     "psutil>=5.9",
     "pynvml>=11.5",

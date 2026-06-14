@@ -2,54 +2,154 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSettings
-from PySide6.QtGui import QPalette
+from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import QApplication
-
 
 _THEMES = ("light", "dark", "auto")
 
+# Shared structural styles — font sizes, spacing, padding NEVER change
+_BASE_QSS = """
+QWidget { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+
+QTabWidget::pane { border: 1px solid $border; border-radius: 4px; margin-top: -1px; }
+QTabBar::tab { padding: 6px 16px; margin-right: 2px; border-top-left-radius: 4px; border-top-right-radius: 4px; min-width: 64px; }
+QTabBar::tab:selected { font-weight: bold; }
+
+QPushButton { border: 1px solid $border; border-radius: 3px; padding: 5px 12px; min-height: 22px; }
+QPushButton:hover { border-color: $accent; }
+QPushButton:pressed { background: $press; }
+
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { border: 1px solid $border; border-radius: 3px; padding: 3px 6px; min-height: 20px; }
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border-color: $accent; }
+QComboBox QAbstractItemView { border: 1px solid $border; selection-background-color: $accent; }
+QComboBox::drop-down { border: none; padding-right: 4px; }
+QSpinBox::up-button, QDoubleSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::down-button { width: 16px; border-left: 1px solid $border; }
+
+QCheckBox { spacing: 6px; }
+QCheckBox::indicator { width: 15px; height: 15px; border: 1px solid $border; border-radius: 2px; }
+
+QGroupBox { border: 1px solid $border; border-radius: 4px; margin-top: 10px; padding-top: 12px; font-weight: bold; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
+
+QToolBar { border-bottom: 1px solid $border; spacing: 4px; padding: 3px 6px; }
+QToolBar QPushButton { font-weight: bold; padding: 4px 14px; min-width: 50px; }
+
+QSplitter::handle { height: 2px; }
+QScrollBar:vertical { width: 8px; border-radius: 4px; }
+QScrollBar::handle:vertical { border-radius: 4px; min-height: 24px; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+
+QTextEdit { border: 1px solid $border; border-radius: 3px; padding: 3px; }
+
+QListWidget { border: 1px solid $border; border-radius: 3px; padding: 2px; }
+QListWidget::item { padding: 2px 4px; }
+QListWidget::item:selected { background: $accent; color: $selectedText; }
+"""
+
+_DARK_VARS = {
+    "$border": "#3a3a50",
+    "$accent": "#4a8abc",
+    "$press": "#2a3a4a",
+    "$selectedText": "#ffffff",
+}
+
+_DARK_QSS = _BASE_QSS + """
+QWidget { color: #c8c8d0; background-color: #1c1c28; }
+QTabWidget::pane { background: #181824; }
+QTabBar::tab { background: #222233; color: #889; }
+QTabBar::tab:selected { background: #1c2c3c; color: #6ab0d0; }
+QTabBar::tab:hover:!selected { background: #2a2a3c; }
+QPushButton { background: #2a2a3c; color: #c8c8d0; }
+QPushButton:hover { background: #343450; }
+QPushButton:disabled { background: #1a1a26; color: #556; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { background: #222233; color: #c8c8d0; }
+QComboBox QAbstractItemView { background: #222233; color: #c8c8d0; }
+QCheckBox { color: #b0b0c0; }
+QCheckBox::indicator { background: #222233; }
+QCheckBox::indicator:checked { background: #4a8abc; }
+QGroupBox { color: #6ab0d0; }
+QGroupBox::title { background: #1c1c28; }
+QToolBar { background: #181824; }
+QScrollBar:vertical { background: #1c1c28; }
+QScrollBar::handle:vertical { background: #3a3a50; }
+QTextEdit { background: #14141e; color: #b0b0c0; }
+QStatusBar { background: #141421; color: #889; font-size: 13pt; }
+QMenuBar { background: #181824; color: #b0b0c0; font-size: 13pt; }
+QMenuBar::item:selected { background: #2a2a3c; }
+QMenuBar::item { padding: 4px 10px; }
+QMenu { background: #222233; color: #c8c8d0; font-size: 13pt; }
+QMenu::item { padding: 5px 28px; }
+QMenu::item:selected { background: $accent; color: $selectedText; }
+QMenu { background: #222233; color: #c8c8d0; }
+QListWidget { background: #222233; color: #c8c8d0; }
+QListWidget::item:hover { background: #2a3a4c; }
+QFormLayout QLabel { color: #8899aa; }
+"""
+
+_LIGHT_VARS = {
+    "$border": "#c0c0cc",
+    "$accent": "#3a7abf",
+    "$press": "#d0d8e0",
+    "$selectedText": "#ffffff",
+}
+
+_LIGHT_QSS = _BASE_QSS + """
+QWidget { color: #333; background-color: #f5f5f5; }
+QTabWidget::pane { background: #ffffff; }
+QTabBar::tab { background: #e8e8ec; color: #667; }
+QTabBar::tab:selected { background: #dce8f0; color: #2068a0; }
+QTabBar::tab:hover:!selected { background: #eef0f4; }
+QPushButton { background: #e0e0e4; color: #333; }
+QPushButton:hover { background: #d4d4dc; }
+QPushButton:disabled { background: #f0f0f0; color: #aaa; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { background: #ffffff; color: #333; }
+QComboBox QAbstractItemView { background: #ffffff; color: #333; }
+QCheckBox { color: #444; }
+QCheckBox::indicator { background: #ffffff; }
+QCheckBox::indicator:checked { background: #3a7abf; }
+QGroupBox { color: #2068a0; }
+QGroupBox::title { background: #f5f5f5; }
+QToolBar { background: #eeeeee; }
+QScrollBar:vertical { background: #f5f5f5; }
+QScrollBar::handle:vertical { background: #c0c0cc; }
+QTextEdit { background: #fafafa; color: #333; }
+QStatusBar { background: #eee; color: #888; font-size: 13pt; }
+QMenuBar { background: #eeeeee; color: #444; font-size: 13pt; }
+QMenuBar::item:selected { background: #dce8f0; }
+QMenuBar::item { padding: 4px 10px; }
+QMenu { background: #ffffff; color: #333; font-size: 13pt; }
+QMenu::item { padding: 5px 28px; }
+QMenu::item:selected { background: $accent; color: $selectedText; }
+QMenu { background: #ffffff; color: #333; }
+QListWidget { background: #ffffff; color: #333; }
+QListWidget::item:hover { background: #dce8f0; }
+QFormLayout QLabel { color: #667788; }
+"""
+
+
+def _subst(qss: str, vars: dict) -> str:
+    for k, v in vars.items():
+        qss = qss.replace(k, v)
+    return qss
+
 
 def _is_system_dark() -> bool:
-    """Best-effort detection of system dark mode on Windows."""
     try:
         import winreg
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-        )
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
         value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
         return value == 0
     except Exception:
-        palette = QApplication.palette()
-        bg = palette.color(QPalette.Window)
-        return bg.lightness() < 128
+        return False
 
 
 def apply_theme(app: QApplication, theme: str) -> None:
-    """Apply the named theme. Unknown values fall back to 'auto'."""
     if theme not in _THEMES:
         theme = "auto"
-    if theme == "light":
-        app.setStyleSheet("")
-        return
-    if theme == "dark":
-        _apply_dark(app)
-        return
-    if _is_system_dark():
-        _apply_dark(app)
-    else:
-        app.setStyleSheet("")
+    if theme == "auto":
+        theme = "dark" if _is_system_dark() else "light"
 
-
-def _apply_dark(app: QApplication) -> None:
-    try:
-        import qdarkstyle
-        app.setStyleSheet(qdarkstyle.load_stylesheet(palette=qdarkstyle.DarkPalette))
-    except Exception:
-        app.setStyle("Fusion")
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QPalette.color(QPalette.Window).darker(150))
-        app.setPalette(palette)
+    app.setStyleSheet(_subst(_DARK_QSS, _DARK_VARS) if theme == "dark" else _subst(_LIGHT_QSS, _LIGHT_VARS))
 
 
 def current_theme() -> str:

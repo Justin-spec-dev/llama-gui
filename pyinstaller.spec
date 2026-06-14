@@ -1,19 +1,23 @@
 # PyInstaller spec for llama-gui
 # Build with: pyinstaller pyinstaller.spec
 
-from PyInstaller.utils.hooks import collect_data_files
-
 block_cipher = None
 
 a = Analysis(
     ["src/llama_app/__main__.py"],
     pathex=["src"],
     binaries=[],
-    datas=collect_data_files("qdarkstyle"),
+    datas=[
+        ("src/llama_app/resources/icon.png", "llama_app/resources"),
+    ],
     hiddenimports=[
         "PySide6.QtCore",
         "PySide6.QtGui",
         "PySide6.QtWidgets",
+        "psutil",
+        "pynvml",
+        "httpx",
+        "pyqtgraph",
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -32,6 +36,7 @@ exe = EXE(
     a.datas,
     [],
     name="llama-gui",
+    icon="src/llama_app/resources/icon.ico",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

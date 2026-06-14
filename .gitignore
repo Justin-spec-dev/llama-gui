@@ -23,6 +23,7 @@ MANIFEST
 
 # Virtual environments
 .venv/
+.venv_win/
 venv/
 env/
 
@@ -31,6 +32,9 @@ env/
 .idea/
 *.swp
 .DS_Store
+
+# Testing
+.pytest_cache/
 
 # PyInstaller
 *.spec.bak

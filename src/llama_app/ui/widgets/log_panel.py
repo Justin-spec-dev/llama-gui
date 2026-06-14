@@ -19,9 +19,6 @@ class LogPanel(QWidget):
         self._view = QTextEdit()
         self._view.setReadOnly(True)
         self._view.setLineWrapMode(QTextEdit.NoWrap)
-        font = QFont("Consolas")
-        font.setStyleHint(QFont.Monospace)
-        self._view.setFont(font)
 
         clear_btn = QPushButton("清空")
         clear_btn.clicked.connect(self.clear)
@@ -39,10 +36,18 @@ class LogPanel(QWidget):
         layout.addLayout(toolbar)
 
         # Pre-define char formats for different streams
+        # Use palette-relative colors that work in both light and dark themes
+        from PySide6.QtGui import QPalette
+        palette = self._view.palette()
+        text_color = palette.color(QPalette.ColorRole.Text)
+        if text_color.lightness() < 128:
+            stderr_color = QColor("#ff6666")  # dark theme: bright red
+        else:
+            stderr_color = QColor("#cc0000")  # light theme: visible red
         self._fmt_stdout = QTextCharFormat()
-        self._fmt_stdout.setForeground(QColor("#dddddd"))
+        self._fmt_stdout.setForeground(text_color)
         self._fmt_stderr = QTextCharFormat()
-        self._fmt_stderr.setForeground(QColor("#ff8080"))
+        self._fmt_stderr.setForeground(stderr_color)
 
     def append_line(self, line: str, stream: str = "stdout") -> None:
         fmt = self._fmt_stderr if stream == "stderr" else self._fmt_stdout

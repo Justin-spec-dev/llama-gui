@@ -1,61 +1,74 @@
 # llama-gui
 
-A Windows GUI launcher for [`llama-server`](https://github.com/ggerganov/llama.cpp)
-that lets you configure parameters, manage presets, and watch resource usage —
-no more hand-typing command-line flags.
+Windows 桌面应用，图形化管理 [llama.cpp](https://github.com/ggerganov/llama.cpp) 的 `llama-server`，告别手敲命令行。
 
-## Features
+## 功能
 
-- Form-based configuration of 30+ `llama-server` flags
-- Save / load / rename / delete named presets
-- Live process control: start, stop, restart, with health-check polling
-- Real-time CPU / RAM / VRAM / GPU% monitoring (NVIDIA via pynvml)
-- Built-in tok/s speed test
-- Light / dark / auto theme
-- Keyboard shortcuts (Ctrl+S to save preset, F5 to restart, etc.)
+- **可视化配置** — 所有 `llama-server` 参数通过表单配置，参数旁有 `?` 悬停提示解释含义
+- **预设管理** — 保存/加载/删除多套配置预设，一键切换不同模型
+- **进程控制** — 启动/停止/重启 llama-server，实时查看输出日志，状态灯显示运行状态
+- **资源监控** — CPU、内存、显存、GPU 占用率实时图表
+- **速度测试** — 一键测试 tok/s 速率和首 token 延迟
+- **浅色/深色主题** — 菜单切换
 
-## Requirements
+## 下载
 
-- Windows 10 / 11
-- Python 3.10+ (only if running from source)
-- A `llama-server.exe` from the
-  [llama.cpp releases page](https://github.com/ggerganov/llama.cpp/releases)
+从 [Releases](https://github.com/Justin-spec-dev/llama-gui/releases) 下载 `llama-gui.exe`。
 
-## Running from source
+## 使用
+
+1. 下载 `llama-server.exe`（从 [llama.cpp Releases](https://github.com/ggerganov/llama.cpp/releases)）
+2. 启动 `llama-gui.exe`
+3. **模型** 标签页：点击 `…` 选择 `llama-server.exe` 和 `.gguf` 模型文件
+4. 在其它标签页调整参数（不填 = 使用 llama 默认值）
+5. 点击 **▶ 启动**
+6. 在 **监控** 标签页查看资源占用和测速
+7. `Ctrl+S` 保存当前配置为预设
+
+## 开发
 
 ```bash
+# 创建虚拟环境
 python -m venv .venv
 .venv\Scripts\activate
+
+# 安装依赖
 pip install -e ".[dev]"
+
+# 运行
 python -m llama_app
+
+# 测试
+pytest tests/ -v
 ```
 
-## Building a single-file `.exe`
+## 打包
 
 ```bash
-pip install pyinstaller
+pip install pyinstaller pillow
 pyinstaller pyinstaller.spec
 # → dist/llama-gui.exe
 ```
 
-## Quick start
+## 项目结构
 
-1. Launch llama-gui.
-2. On the **Model** tab, click `…` next to `llama-server.exe` and pick your
-   `llama-server.exe`. Do the same for the model file.
-3. Adjust parameters on the other tabs as needed.
-4. Click **▶ 启动** (or press `Ctrl+Enter`).
-5. Watch the log panel and the **监控** tab for resource usage.
-6. When you're done, click **■ 停止** (or `Ctrl+.`).
-
-To save your configuration for later, press `Ctrl+S` and give the preset a name.
-
-## Project layout
-
-See `docs/superpowers/specs/2026-06-14-llama-gui-design.md` for the full
-design and `docs/superpowers/plans/2026-06-14-llama-gui.md` for the
-implementation plan.
+```
+src/llama_app/
+├── core/           # 纯业务逻辑（Config, PresetStore, ServerProcess, Monitor）
+│   ├── config.py
+│   ├── validators.py
+│   ├── presets.py
+│   ├── process.py
+│   ├── monitor.py
+│   └── speedtest.py
+├── ui/             # PySide6 界面
+│   ├── main_window.py
+│   ├── theme.py
+│   ├── tabs/       # 7 个标签页
+│   └── widgets/    # 通用控件（PathPicker, LogPanel, StatusIndicator）
+└── resources/      # 图标
+```
 
 ## License
 
-Personal project — license to be determined.
+MIT

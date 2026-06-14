@@ -17,17 +17,23 @@ class NetworkTab(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.host = QLineEdit("127.0.0.1")
-        self.port = QSpinBox(); self.port.setRange(1, 65535); self.port.setValue(8080)
+        self.host = QLineEdit()
+        self.host.setPlaceholderText("127.0.0.1 (llama 默认)")
+        self.host.setToolTip("监听地址 (--host)\n\n服务器绑定的 IP 地址\n127.0.0.1 = 仅本机访问\n0.0.0.0 = 允许局域网内其他设备访问\nllama 默认: 127.0.0.1")
+        self.port = QSpinBox(); self.port.setRange(0, 65535); self.port.setValue(0); self.port.setSpecialValueText("(默认 8080)")
+        self.port.setToolTip("监听端口 (--port)\n\n服务器监听的端口号\nllama 默认: 8080")
         self.api_key = QLineEdit(); self.api_key.setEchoMode(QLineEdit.Password)
-        self.api_key.setPlaceholderText("(可选)")
-        self.enable_ui = QCheckBox("启用内置 Web UI (--ui)")
-        self.enable_ui.setChecked(True)
-        self.metrics = QCheckBox("暴露 Prometheus 指标 (--metrics)")
+        self.api_key.setPlaceholderText("(可选，llama 默认: 无)")
+        self.api_key.setToolTip("API 密钥 (--api-key)\n\n设置后，所有 API 请求需要携带此密钥\n用于防止未授权访问，支持逗号分隔的多个密钥\nllama 默认: 无")
+        self.enable_ui = QCheckBox("禁用内置 Web UI（llama 默认: 启用）")
+        self.enable_ui.setToolTip("禁用内置 Web 聊天界面 (--no-ui)\n\nllama 默认启用 Web UI\n勾选此框 = 纯 API 模式，不启动 Web 界面")
+        self.metrics = QCheckBox("启用 Prometheus 指标（llama 默认: 关闭）")
+        self.metrics.setToolTip("Prometheus 监控指标 (--metrics)\n\n开启 /metrics 端点，暴露 Prometheus 格式的监控数据\n包括请求数、token 数、显存使用等\nllama 默认: 关闭")
         self.alias = QLineEdit()
-        self.alias.setPlaceholderText("(可选) API 显示的模型名")
-        self.jinja = QCheckBox("使用 Jinja 聊天模板 (--jinja)")
-        self.jinja.setChecked(True)
+        self.alias.setPlaceholderText("(可选，llama 默认: 无)")
+        self.alias.setToolTip("模型别名 (-a / --alias)\n\n设置 API 中显示的模型名称\n支持逗号分隔的多个别名\nllama 默认: 无")
+        self.jinja = QCheckBox("禁用 Jinja 模板（llama 默认: 启用）")
+        self.jinja.setToolTip("禁用 Jinja 聊天模板 (--no-jinja)\n\nllama 默认使用 Jinja2 模板引擎\n勾选此框 = 改用简单文本拼接")
 
         self.host.textChanged.connect(lambda _t: self.changed.emit())
         self.port.valueChanged.connect(lambda _v: self.changed.emit())
@@ -51,31 +57,37 @@ class NetworkTab(QWidget):
         outer.addStretch(1)
 
     def values(self) -> dict:
+        port = self.port.value() if not self.port.specialValueText() or self.port.value() != 0 else None
         return {
             "host": self.host.text() or None,
-            "port": self.port.value(),
+            "port": port,
             "api_key": self.api_key.text() or None,
-            "enable_ui": self.enable_ui.isChecked(),
-            "metrics": self.metrics.isChecked(),
+            "enable_ui": False if self.enable_ui.isChecked() else None,
+            "metrics": True if self.metrics.isChecked() else None,
             "alias": self.alias.text() or None,
-            "jinja": self.jinja.isChecked(),
+            "jinja": False if self.jinja.isChecked() else None,
         }
 
     def set_values(self, d: dict) -> None:
-        for w, key, default in [
-            (self.host, "host", "127.0.0.1"), (self.api_key, "api_key", ""),
-            (self.alias, "alias", ""),
-        ]:
-            w.blockSignals(True)
-            w.setText(d.get(key) or default)
-            w.blockSignals(False)
+        self.host.blockSignals(True)
+        self.host.setText(d.get("host") or "")
+        self.host.blockSignals(False)
         self.port.blockSignals(True)
-        self.port.setValue(d.get("port") or 8080)
+        self.port.setValue(d.get("port") or 0)
         self.port.blockSignals(False)
-        for cb, key, default in [
+        self.api_key.blockSignals(True)
+        self.api_key.setText(d.get("api_key") or "")
+        self.api_key.blockSignals(False)
+        self.alias.blockSignals(True)
+        self.alias.setText(d.get("alias") or "")
+        self.alias.blockSignals(False)
+        for cb, key, is_disable in [
             (self.enable_ui, "enable_ui", True), (self.metrics, "metrics", False),
             (self.jinja, "jinja", True),
         ]:
             cb.blockSignals(True)
-            cb.setChecked(bool(d.get(key, default)))
+            if is_disable:
+                cb.setChecked(d.get(key) is False)
+            else:
+                cb.setChecked(bool(d.get(key)))
             cb.blockSignals(False)

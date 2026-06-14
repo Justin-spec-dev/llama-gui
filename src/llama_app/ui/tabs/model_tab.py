@@ -15,12 +15,15 @@ class ModelTab(QWidget):
         self.server_picker = PathPicker(
             "llama-server.exe", file_filter="Executables (*.exe);;All files (*)"
         )
+        self.server_picker.setToolTip("llama-server 可执行文件路径\n\n从 llama.cpp releases 下载的 llama-server.exe")
         self.model_picker = PathPicker(
             "Model (*.gguf)", file_filter="GGUF models (*.gguf);;All files (*)"
         )
+        self.model_picker.setToolTip("GGUF 格式的模型文件路径\n\n对应 -m / --model 参数\n支持 .gguf 格式的量化模型")
         self.mmproj_picker = PathPicker(
             "mmproj (optional)", file_filter="GGUF models (*.gguf);;All files (*)"
         )
+        self.mmproj_picker.setToolTip("多模态投影器文件路径（可选）\n\n对应 --mmproj 参数\n多模态模型（如 LLaVA、Qwen-VL）需要此文件来处理图像")
         for p in (self.server_picker, self.model_picker, self.mmproj_picker):
             p.path_changed.connect(lambda _t: self.changed.emit())
 

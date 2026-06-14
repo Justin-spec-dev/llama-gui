@@ -30,11 +30,21 @@ from llama_app.ui.widgets.log_panel import LogPanel
 from llama_app.ui.widgets.status_indicator import StatusIndicator, Status
 
 
+_STYLESHEET = ""  # replaced by theme.py — keep empty
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("llama-gui")
-        self.resize(1200, 800)
+        self.resize(1280, 860)
+
+        # App icon
+        from pathlib import Path
+        icon_path = Path(__file__).parent.parent / "resources" / "icon.png"
+        if icon_path.exists():
+            from PySide6.QtGui import QIcon
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         self._store = PresetStore()
         self._server = ServerProcess(self)
@@ -237,7 +247,11 @@ class MainWindow(QMainWindow):
 
         host = cfg.host or "127.0.0.1"
         port = cfg.port or 8080
-        self._server.start(str(server), args, cwd=str(model.parent), health_url=f"http://{host}:{port}/health", health_timeout_s=120)
+        self._server.start(
+            program=str(server), arguments=args, cwd=str(model.parent),
+            health_url=f"http://127.0.0.1:{port}/health",
+            health_timeout_s=120,
+        )
         self._update_toolbar_state()
 
     def _on_stop_clicked(self) -> None:
@@ -246,7 +260,7 @@ class MainWindow(QMainWindow):
 
     def _on_restart_clicked(self) -> None:
         self._server.stop()
-        self._server._proc.finished.connect(self._on_start_clicked, type=Qt.QueuedConnection)
+        self._server._proc.finished.connect(self._on_start_clicked, type=Qt.SingleShotConnection)
 
     # --- Server callbacks ---
 
@@ -261,14 +275,14 @@ class MainWindow(QMainWindow):
             ServerState.ERROR: Status.ERROR,
         }[s])
         self.sb_status.setText(f"状态: {state}")
-        if s == ServerState.READY:
+        if s in (ServerState.LOADING, ServerState.READY):
             self._start_monitor()
         elif s in (ServerState.STOPPED, ServerState.ERROR):
             self._stop_monitor()
         self._update_toolbar_state()
 
     def _on_log_line(self, line: str) -> None:
-        stream = "stderr" if "[stderr]" in line else "stdout"
+        stream = "stderr" if line.startswith("[stderr]") else "stdout"
         self.log.append_line(line, stream)
 
     # --- Monitor ---
@@ -335,14 +349,20 @@ class MainWindow(QMainWindow):
     # --- Speed test ---
 
     def _on_start_test(self) -> None:
+        if self._server.state != ServerState.READY:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "无法测试", "请先启动 llama-server 并等待模型加载完成（状态灯变绿）")
+            self.tab_monitor._run_btn.setEnabled(True)
+            self.tab_monitor._result.setPlainText("(服务未就绪)")
+            return
         cfg = self.collect_config()
-        host = cfg.host or "127.0.0.1"
+        # Always connect via localhost — 0.0.0.0 is a bind address, not a connect address
         port = cfg.port or 8080
         from llama_app.core.speedtest import SpeedTester
         self._tester = SpeedTester(self)
         self._tester.finished.connect(self.tab_monitor._on_test_finished)
         self._tester.failed.connect(self.tab_monitor._on_test_failed)
-        self._tester.run(host, port, cfg.api_key, self.tab_monitor._prompt.toPlainText(), max_tokens=200)
+        self._tester.run("127.0.0.1", port, cfg.api_key, self.tab_monitor._prompt.toPlainText(), max_tokens=200)
 
     def _set_theme(self, theme: str) -> None:
         from llama_app.ui.theme import apply_theme, save_theme
