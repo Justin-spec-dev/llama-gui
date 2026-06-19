@@ -16,8 +16,13 @@ def main() -> int:
     # Global font — never changes with theme
     from PySide6.QtGui import QFont
     font = QFont()
-    font.setPointSize(13)
-    font.setFamilies(["Segoe UI", "Microsoft YaHei", "sans-serif"])
+    font.setPointSizeF(10.5)
+    font.setFamilies([
+        "Segoe UI Variable",
+        "Segoe UI",
+        "Microsoft YaHei UI",
+        "sans-serif",
+    ])
     app.setFont(font)
 
     from llama_app.ui.theme import apply_theme, current_theme
