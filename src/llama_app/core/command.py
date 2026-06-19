@@ -11,9 +11,12 @@ _SENSITIVE_FLAGS = frozenset({"--api-key", "--hf-token"})
 def redact_args(arguments: Sequence[str]) -> list[str]:
     """Return a copy of arguments with sensitive flag values masked."""
     redacted = list(arguments)
-    for index, argument in enumerate(arguments[:-1]):
-        if argument in _SENSITIVE_FLAGS:
+    for index, argument in enumerate(arguments):
+        if argument in _SENSITIVE_FLAGS and index + 1 < len(arguments):
             redacted[index + 1] = "********"
+        elif any(argument.startswith(f"{flag}=") for flag in _SENSITIVE_FLAGS):
+            flag, _, _ = argument.partition("=")
+            redacted[index] = f"{flag}=********"
     return redacted
 
 

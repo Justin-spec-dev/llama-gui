@@ -84,7 +84,7 @@ class Config:
     lookup_cache_dynamic: str | None = None  # -lcd
 
     def validate(self) -> None:
-        """Raise ValueError on invalid enum values. Call before to_args()."""
+        """Validate enums, required nonblank paths, and cross-field relationships."""
         enum_checks = {
             "flash_attn": (self.flash_attn, {"on", "off", "auto"}),
             "reasoning": (self.reasoning, {"on", "off", "auto"}),

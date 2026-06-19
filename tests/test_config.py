@@ -7,7 +7,7 @@ from llama_app.core.config import Config, ConfigBuilder
 
 
 def test_config_minimal_required_fields():
-    """Config requires only server_path and model_path to be non-None."""
+    """Config requires only nonblank server_path and model_path values."""
     cfg = Config(server_path="C:/llama/llama-server.exe", model_path="C:/models/qwen.gguf")
     assert cfg.server_path == "C:/llama/llama-server.exe"
     assert cfg.model_path == "C:/models/qwen.gguf"

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
+
 from llama_app.core.command import format_display_command, redact_args
 
 
@@ -50,11 +52,45 @@ def test_format_display_command_quotes_windows_paths_with_spaces():
     assert '"C:\\My Models\\model.gguf"' in display
 
 
-def test_redact_args_does_not_mutate_input():
-    arguments = ["--api-key", "api-secret", "--port", "8080"]
+@pytest.mark.parametrize(
+    ("flag", "secret", "arguments", "expected"),
+    [
+        (
+            "--api-key",
+            "api-secret",
+            ["--api-key", "api-secret", "--port", "8080"],
+            ["--api-key", "********", "--port", "8080"],
+        ),
+        (
+            "--api-key",
+            "api-secret",
+            ["--api-key=api-secret", "--port", "8080"],
+            ["--api-key=********", "--port", "8080"],
+        ),
+        (
+            "--hf-token",
+            "hf-secret",
+            ["--hf-token", "hf-secret", "--port", "8080"],
+            ["--hf-token", "********", "--port", "8080"],
+        ),
+        (
+            "--hf-token",
+            "hf-secret",
+            ["--hf-token=hf-secret", "--port", "8080"],
+            ["--hf-token=********", "--port", "8080"],
+        ),
+    ],
+)
+def test_redact_args_masks_sensitive_values_without_mutating_input(
+    flag, secret, arguments, expected
+):
+    original = arguments.copy()
 
     redacted = redact_args(arguments)
 
-    assert arguments == ["--api-key", "api-secret", "--port", "8080"]
-    assert redacted == ["--api-key", "********", "--port", "8080"]
+    assert arguments == original
+    assert redacted == expected
+    assert secret not in redacted
+    assert all(secret not in argument for argument in redacted)
+    assert redacted[0].startswith(flag)
     assert redacted is not arguments
