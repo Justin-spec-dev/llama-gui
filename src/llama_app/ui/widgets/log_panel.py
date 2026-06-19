@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from PySide6.QtGui import QColor, QPalette, QTextCharFormat, QTextCursor
+from PySide6.QtGui import QColor, QFont, QPalette, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -26,6 +26,10 @@ class LogPanel(QWidget):
         self._view.setReadOnly(True)
         self._view.setLineWrapMode(QTextEdit.NoWrap)
         self._view.setAccessibleName("运行日志")
+        log_font = QFont()
+        log_font.setFamilies(["Cascadia Mono", "Consolas", "Microsoft YaHei UI"])
+        log_font.setPointSizeF(11.0)
+        self._view.setFont(log_font)
 
         self.filter_combo = QComboBox(self)
         self.filter_combo.addItem("全部", "all")

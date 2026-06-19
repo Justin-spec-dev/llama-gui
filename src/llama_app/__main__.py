@@ -16,11 +16,11 @@ def main() -> int:
     # Global font — never changes with theme
     from PySide6.QtGui import QFont
     font = QFont()
-    font.setPointSizeF(10.5)
+    font.setPointSizeF(11.5)
     font.setFamilies([
+        "Microsoft YaHei UI",
         "Segoe UI Variable",
         "Segoe UI",
-        "Microsoft YaHei UI",
         "sans-serif",
     ])
     app.setFont(font)

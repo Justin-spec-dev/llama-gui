@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QTextEdit
 
 from llama_app.ui.widgets.log_panel import LogPanel
 
@@ -18,6 +18,14 @@ def qapp():
 def test_log_panel_starts_empty(qapp):
     panel = LogPanel()
     assert panel.toPlainText() == ""
+
+
+def test_log_panel_uses_readable_monospace_font(qapp):
+    panel = LogPanel()
+    view = panel.findChild(QTextEdit)
+
+    assert view.font().pointSizeF() == 11.0
+    assert view.font().families()[:2] == ["Cascadia Mono", "Consolas"]
 
 
 def test_log_panel_appends_text(qapp):

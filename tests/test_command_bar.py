@@ -81,10 +81,15 @@ def test_workbench_theme_has_navigation_command_and_state_rules(qapp, theme):
     assert ":focus" in qss
     assert ":disabled" in qss
     assert ":hover" in qss
-    assert "font-size: 13pt" not in qss
+    assert "font-size: 11.5pt" in qss
+    assert "font-size: 12pt" in qss
+    assert "font-size: 14pt" in qss
+    assert "min-height: 28px" in qss
+    assert "min-height: 30px" in qss
+    assert "QListWidget#navigationPages::item" in qss
 
 
-def test_application_uses_compact_fallback_font_stack(monkeypatch, qapp):
+def test_application_uses_chinese_first_readable_font_stack(monkeypatch, qapp):
     import llama_app.__main__ as entrypoint
 
     captured = {}
@@ -117,10 +122,10 @@ def test_application_uses_compact_fallback_font_stack(monkeypatch, qapp):
 
     assert entrypoint.main() == 0
     font = captured["font"]
-    assert font.pointSizeF() == 10.5
+    assert font.pointSizeF() == 11.5
     assert font.families() == [
+        "Microsoft YaHei UI",
         "Segoe UI Variable",
         "Segoe UI",
-        "Microsoft YaHei UI",
         "sans-serif",
     ]

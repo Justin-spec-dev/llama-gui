@@ -44,6 +44,8 @@ class NavigationRail(QFrame):
         self.page_list = QListWidget(self)
         self.page_list.setObjectName("navigationPages")
         self.page_list.setAccessibleName("工作区导航")
+        self.page_list.setWordWrap(True)
+        self.page_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         for key, title, description in PAGES:
             item = QListWidgetItem(f"{title}\n{description}")
             item.setData(Qt.UserRole, key)
