@@ -96,6 +96,17 @@ class Config:
             if value is not None and value not in allowed:
                 raise ValueError(f"{name}={value!r} not in {sorted(allowed)}")
 
+        if not self.server_path.strip():
+            raise ValueError("server_path is required")
+        if not self.model_path.strip():
+            raise ValueError("model_path is required")
+        if (
+            self.batch_size is not None
+            and self.ubatch_size is not None
+            and self.ubatch_size > self.batch_size
+        ):
+            raise ValueError("ubatch_size must be less than or equal to batch_size")
+
 
 class ConfigBuilder:
     """Convert a Config into the list of args for llama-server."""
