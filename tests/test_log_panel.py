@@ -38,3 +38,39 @@ def test_log_panel_caps_lines(qapp):
     assert "line 49" in text
     assert "line 0" not in text
     assert text.count("\n") <= 11  # 10 lines + trailing newline
+
+
+def test_log_panel_filters_stderr_without_losing_records(qapp):
+    panel = LogPanel()
+    panel.append_line("normal", "stdout")
+    panel.append_line("problem", "stderr")
+
+    panel.set_filter("stderr")
+    assert "normal" not in panel.toPlainText()
+    assert "problem" in panel.toPlainText()
+
+    panel.set_filter("all")
+    assert "normal" in panel.toPlainText()
+    assert "problem" in panel.toPlainText()
+
+
+def test_log_panel_caps_records_while_filtered(qapp):
+    panel = LogPanel(max_lines=2)
+    panel.set_filter("stderr")
+    panel.append_line("one", "stdout")
+    panel.append_line("two", "stderr")
+    panel.append_line("three", "stdout")
+
+    panel.set_filter("all")
+    assert "one" not in panel.toPlainText()
+    assert "two" in panel.toPlainText()
+    assert "three" in panel.toPlainText()
+
+
+def test_log_panel_clear_removes_all_records(qapp):
+    panel = LogPanel()
+    panel.append_line("normal", "stdout")
+    panel.set_filter("stderr")
+    panel.clear()
+    panel.set_filter("all")
+    assert panel.toPlainText() == ""

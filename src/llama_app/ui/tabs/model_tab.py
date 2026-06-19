@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFormLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFormLayout, QPushButton, QVBoxLayout, QWidget
 
 from llama_app.ui.widgets.path_picker import PathPicker
+from llama_app.ui.widgets.config_page import SectionTitle
 
 
 class ModelTab(QWidget):
@@ -26,6 +27,15 @@ class ModelTab(QWidget):
         self.mmproj_picker.setToolTip("多模态投影器文件路径（可选）\n\n对应 --mmproj 参数\n多模态模型（如 LLaVA、Qwen-VL）需要此文件来处理图像")
         for p in (self.server_picker, self.model_picker, self.mmproj_picker):
             p.path_changed.connect(lambda _t: self.changed.emit())
+        for picker, name in (
+            (self.server_picker, "浏览 llama-server 可执行文件"),
+            (self.model_picker, "浏览 GGUF 模型文件"),
+            (self.mmproj_picker, "浏览多模态投影文件"),
+        ):
+            for button in picker.findChildren(QPushButton):
+                button.setText("浏览")
+                button.setAccessibleName(name)
+                button.setFixedWidth(button.sizeHint().width())
 
         form = QFormLayout()
         form.addRow("llama-server 路径:", self.server_picker)
@@ -33,6 +43,7 @@ class ModelTab(QWidget):
         form.addRow("mmproj:", self.mmproj_picker)
 
         outer = QVBoxLayout(self)
+        outer.addWidget(SectionTitle("模型与服务器", "选择运行程序、模型和可选投影文件"))
         outer.addLayout(form)
         outer.addStretch(1)
 
