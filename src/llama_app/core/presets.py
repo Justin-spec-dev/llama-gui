@@ -18,6 +18,10 @@ from .config import Config
 PRESETS_VERSION = 1
 
 
+class UnsupportedPresetVersionError(ValueError):
+    """Raised when mutations are attempted on an unsupported preset schema."""
+
+
 @dataclass
 class Preset:
     name: str
@@ -48,6 +52,7 @@ class PresetStore:
     def __init__(self, path: Path | None = None):
         self.path = Path(path) if path is not None else default_path()
         self.recovery_notice: str | None = None
+        self._writable = True
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self._presets: dict[str, Preset] = {}
@@ -61,6 +66,7 @@ class PresetStore:
             version = data.get("version")
             if type(version) is not int or version != PRESETS_VERSION:
                 self._presets = {}
+                self._writable = False
                 self.recovery_notice = (
                     f"Unsupported presets schema version {version!r}; "
                     f"expected {PRESETS_VERSION}. The presets file was left unchanged."
@@ -131,12 +137,18 @@ class PresetStore:
         self._save_atomic(sanitized)
         self._presets = sanitized
 
+    def _ensure_writable(self) -> None:
+        if not self._writable:
+            raise UnsupportedPresetVersionError(self.recovery_notice)
+
     def save(self, preset: Preset) -> None:
+        self._ensure_writable()
         candidate = dict(self._presets)
         candidate[preset.name] = preset
         self._commit(candidate)
 
     def delete(self, name: str) -> None:
+        self._ensure_writable()
         if name not in self._presets:
             raise KeyError(f"Preset '{name}' not found")
         candidate = dict(self._presets)
@@ -144,6 +156,7 @@ class PresetStore:
         self._commit(candidate)
 
     def rename(self, old: str, new: str) -> None:
+        self._ensure_writable()
         if old not in self._presets:
             raise KeyError(f"Preset '{old}' not found")
         if new in self._presets:

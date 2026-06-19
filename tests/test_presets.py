@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from llama_app.core.config import Config
-from llama_app.core.presets import Preset, PresetStore
+from llama_app.core.presets import (
+    Preset,
+    PresetStore,
+    UnsupportedPresetVersionError,
+)
 
 
 def _make_config(name: str) -> Config:
@@ -195,7 +199,10 @@ def test_preset_malformed_structure_recovers(tmp_path: Path, payload: object):
         {"version": "1", "presets": []},
     ],
 )
-def test_unsupported_version_preserves_primary_file(tmp_path: Path, payload: object):
+@pytest.mark.parametrize("operation", ["save", "delete", "rename"])
+def test_unsupported_version_rejects_mutations_and_preserves_primary_file(
+    tmp_path: Path, payload: object, operation: str
+):
     path = tmp_path / "presets.json"
     original = json.dumps(payload, separators=(",", ":")).encode()
     path.write_bytes(original)
@@ -205,6 +212,19 @@ def test_unsupported_version_preserves_primary_file(tmp_path: Path, payload: obj
     assert store.list() == []
     assert store.recovery_notice is not None
     assert "version" in store.recovery_notice.lower()
+
+    with pytest.raises(ValueError) as exc_info:
+        if operation == "save":
+            store.save(
+                Preset("new", _make_config("new"), "2026-01-01T00:00:00Z")
+            )
+        elif operation == "delete":
+            store.delete("missing")
+        else:
+            store.rename("missing", "renamed")
+
+    assert isinstance(exc_info.value, UnsupportedPresetVersionError)
+    assert str(exc_info.value) == store.recovery_notice
     assert path.read_bytes() == original
     assert list(tmp_path.glob("presets.json.bak*")) == []
 
