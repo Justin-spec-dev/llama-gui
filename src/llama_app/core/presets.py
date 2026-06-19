@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -47,6 +47,7 @@ class PresetStore:
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path) if path is not None else default_path()
+        self.recovery_notice: str | None = None
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self._presets: dict[str, Preset] = {}
@@ -55,21 +56,31 @@ class PresetStore:
         try:
             raw = self.path.read_text(encoding="utf-8")
             data = json.loads(raw)
-        except json.JSONDecodeError as e:
-            backup = self.path.with_suffix(self.path.suffix + ".bak")
-            self.path.replace(backup)
-            raise ValueError(
-                f"Presets file is corrupt: {self.path}. Backed up to {backup}. "
-                f"Original error: {e}"
-            ) from e
-        self._presets = {
-            entry["name"]: Preset(
-                name=entry["name"],
-                config=Config(**entry["config"]),
-                updated_at=entry["updated_at"],
-            )
-            for entry in data.get("presets", [])
-        }
+            if not isinstance(data, dict):
+                raise ValueError("presets file root must be an object")
+            entries = data["presets"]
+            if not isinstance(entries, list):
+                raise ValueError("presets must be a list")
+            self._presets = {
+                entry["name"]: Preset(
+                    name=entry["name"],
+                    config=Config(**entry["config"]),
+                    updated_at=entry["updated_at"],
+                )
+                for entry in entries
+            }
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+            self._recover(e)
+
+    def _recover(self, error: Exception) -> None:
+        backup = self.path.with_suffix(self.path.suffix + ".bak")
+        self.path.replace(backup)
+        self.recovery_notice = (
+            f"Presets file was recovered. Backed up to {backup}. "
+            f"Original error: {error}"
+        )
+        self._presets = {}
+        self._save_atomic()
 
     def list(self) -> list[Preset]:
         return sorted(self._presets.values(), key=lambda p: p.name.lower())
@@ -80,7 +91,11 @@ class PresetStore:
         return self._presets[name]
 
     def save(self, preset: Preset) -> None:
-        self._presets[preset.name] = preset
+        sanitized = replace(
+            preset,
+            config=replace(preset.config, api_key=None, hf_token=None),
+        )
+        self._presets[sanitized.name] = sanitized
         self._save_atomic()
 
     def delete(self, name: str) -> None:
