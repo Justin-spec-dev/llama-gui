@@ -51,10 +51,10 @@ class MonitorTab(QWidget):
         test_layout.addWidget(self._result, 1)
 
         # --- 4 plots in 2x2 grid ---
-        self._plot_cpu = ResourcePlot("CPU %", "%")
-        self._plot_ram = ResourcePlot("RAM", " GB")
-        self._plot_vram = ResourcePlot("VRAM", " GB")
-        self._plot_gpu = ResourcePlot("GPU", "%")
+        self._plot_cpu = ResourcePlot("CPU %", "%", color="#2563eb")
+        self._plot_ram = ResourcePlot("RAM", " GB", color="#0ea5e9")
+        self._plot_vram = ResourcePlot("VRAM", " GB", color="#f59e0b")
+        self._plot_gpu = ResourcePlot("GPU", "%", color="#10b981")
 
         grid = QGridLayout()
         grid.addWidget(self._plot_cpu, 0, 0)
@@ -95,6 +95,35 @@ class MonitorTab(QWidget):
         self._plot_ram.push(latest.get("mem_total_gb"))
         self._plot_vram.push(latest.get("vram_gb"))
         self._plot_gpu.push(latest.get("gpu_util"))
+
+    def set_plot_colors(self, colors: dict) -> None:
+        """Repaint each resource plot with the given color palette.
+
+        Used by MainWindow to keep pyqtgraph colors in sync with the active theme.
+        """
+        for plot, key in (
+            (self._plot_cpu, "cpu"),
+            (self._plot_ram, "ram"),
+            (self._plot_vram, "vram"),
+            (self._plot_gpu, "gpu"),
+        ):
+            color = colors.get(key)
+            if color:
+                plot.set_color(color)
+
+    def set_plot_theme(self, background: str, axis: str) -> None:
+        """Repaint the canvas background + axis color of all 4 plots.
+
+        pyqtgraph ignores QSS, so the MainWindow calls this whenever the theme
+        changes to keep the plots from sticking on the default black canvas.
+        """
+        for plot in (
+            self._plot_cpu,
+            self._plot_ram,
+            self._plot_vram,
+            self._plot_gpu,
+        ):
+            plot.set_background(background, axis)
 
     def _on_test_finished(self, result: dict) -> None:
         self.show_test_result(result)

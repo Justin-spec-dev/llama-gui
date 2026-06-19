@@ -36,7 +36,7 @@ class CommandBar(QFrame):
         self.setObjectName("commandBar")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(10)
 
         preset_box = QVBoxLayout()
@@ -77,6 +77,13 @@ class CommandBar(QFrame):
         self.start_button.clicked.connect(self.start_requested)
         self.stop_button.clicked.connect(self.stop_requested)
         self.restart_button.clicked.connect(self.restart_requested)
+
+        # Promote the launch action to a solid primary button so the main
+        # operation is visually distinct from the secondary stop/restart actions.
+        self.start_button.setProperty("role", "primary")
+        self.start_button.style().unpolish(self.start_button)
+        self.start_button.style().polish(self.start_button)
+
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
         layout.addWidget(self.restart_button)
@@ -96,7 +103,7 @@ class CommandBar(QFrame):
             state in {ServerState.STARTING, ServerState.LOADING, ServerState.READY}
         )
         self.restart_button.setEnabled(state is ServerState.READY)
-        self.status_label.setText(STATE_LABELS[state])
+        self.status_label.setText(f"● {STATE_LABELS[state]}")
         self.status_label.setProperty("state", state.value)
         self.setProperty("state", state.value)
         self.status_label.style().unpolish(self.status_label)

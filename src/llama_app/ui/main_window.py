@@ -121,6 +121,11 @@ class MainWindow(QMainWindow):
         self._restore_geometry()
         self._on_server_state(self._server.state.value)
         self._show_recovery_notice()
+        # Sync the pyqtgraph plots to whatever theme is currently active so the
+        # canvas background isn't stuck on the global default (black on first
+        # launch in either mode).
+        from llama_app.ui.theme import current_theme
+        self._set_theme(current_theme())
 
     def _build_statusbar(self) -> None:
         bar = QStatusBar(self)
@@ -458,11 +463,25 @@ class MainWindow(QMainWindow):
         self.sb_status.setText(message)
 
     def _set_theme(self, theme: str) -> None:
-        from llama_app.ui.theme import apply_theme, save_theme
+        from llama_app.ui.theme import _DARK_VARS, _LIGHT_VARS, apply_theme, save_theme
 
         apply_theme(QApplication.instance(), theme)
         save_theme(theme)
         self.log.refresh_theme()
+
+        # pyqtgraph draws with its own colors; repaint each plot to match.
+        vars_ = _DARK_VARS if theme == "dark" else _LIGHT_VARS
+        is_dark = theme == "dark"
+        self.tab_monitor.set_plot_colors({
+            "cpu": vars_["$plot1"],
+            "ram": vars_["$plot2"],
+            "vram": vars_["$plot3"],
+            "gpu": vars_["$plot4"],
+        })
+        self.tab_monitor.set_plot_theme(
+            background="#14141e" if is_dark else "#ffffff",
+            axis="#94a3b8" if is_dark else "#475569",
+        )
 
     def _show_help(self) -> None:
         QMessageBox.information(

@@ -79,6 +79,7 @@ class PerformanceTab(QWidget):
         form.addRow(self.cont_batching)
 
         outer = QVBoxLayout(self)
+        outer.setSpacing(12)
         outer.addLayout(form)
         outer.addStretch(1)
 

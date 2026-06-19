@@ -84,8 +84,9 @@ def test_workbench_theme_has_navigation_command_and_state_rules(qapp, theme):
     assert "font-size: 11.5pt" in qss
     assert "font-size: 12pt" in qss
     assert "font-size: 14pt" in qss
-    assert "min-height: 28px" in qss
     assert "min-height: 30px" in qss
+    assert "min-height: 32px" in qss
+    assert "QPushButton[role=\"primary\"]" in qss
     assert "QListWidget#navigationPages::item" in qss
 
 

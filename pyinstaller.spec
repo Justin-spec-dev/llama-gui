@@ -9,6 +9,10 @@ a = Analysis(
     binaries=[],
     datas=[
         ("src/llama_app/resources/icon.png", "llama_app/resources"),
+        ("src/llama_app/resources/spin_up_light.png", "llama_app/resources"),
+        ("src/llama_app/resources/spin_down_light.png", "llama_app/resources"),
+        ("src/llama_app/resources/spin_up_dark.png", "llama_app/resources"),
+        ("src/llama_app/resources/spin_down_dark.png", "llama_app/resources"),
     ],
     hiddenimports=[
         "PySide6.QtCore",

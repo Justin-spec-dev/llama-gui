@@ -95,6 +95,7 @@ class AdvancedTab(QWidget):
         form.addRow(self.cache_prompt)
 
         outer = QVBoxLayout(self)
+        outer.setSpacing(12)
         outer.addLayout(form)
         outer.addStretch(1)
 

@@ -57,6 +57,7 @@ class NetworkTab(QWidget):
         form.addRow("alias (-a):", self.alias)
 
         outer = QVBoxLayout(self)
+        outer.setSpacing(12)
         outer.addLayout(form)
         outer.addStretch(1)
 

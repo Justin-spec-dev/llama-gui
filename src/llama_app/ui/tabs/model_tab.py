@@ -43,6 +43,7 @@ class ModelTab(QWidget):
         form.addRow("mmproj:", self.mmproj_picker)
 
         outer = QVBoxLayout(self)
+        outer.setSpacing(12)
         outer.addWidget(SectionTitle("模型与服务器", "选择运行程序、模型和可选投影文件"))
         outer.addLayout(form)
         outer.addStretch(1)

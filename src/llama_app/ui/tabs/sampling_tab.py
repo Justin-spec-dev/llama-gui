@@ -93,6 +93,7 @@ class SamplingTab(QWidget):
         form.addRow("reasoning-budget:", self.reasoning_budget)
 
         outer = QVBoxLayout(self)
+        outer.setSpacing(12)
         outer.addLayout(form)
         outer.addStretch(1)
 

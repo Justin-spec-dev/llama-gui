@@ -123,9 +123,15 @@ class LogPanel(QWidget):
                 self._append_visible(line, stream)
 
     def _create_formats_from_palette(self) -> None:
-        text_color = self._view.palette().color(QPalette.ColorRole.Text)
-        stderr_color = QColor("#ff6666" if text_color.lightness() > 128 else "#cc0000")
+        # Use the QTextEdit background (Base) to detect theme — it tracks
+        # the active palette more reliably than Text across our light/dark themes.
+        palette = self._view.palette()
+        base_color = palette.color(QPalette.ColorRole.Base)
+        is_dark = base_color.lightness() < 128
+        stdout_color = palette.color(QPalette.ColorRole.Text)
+        # Amber is more readable than raw red on both palettes.
+        stderr_hex = "#f59e0b" if is_dark else "#d97706"
         self._fmt_stdout = QTextCharFormat()
-        self._fmt_stdout.setForeground(text_color)
+        self._fmt_stdout.setForeground(stdout_color)
         self._fmt_stderr = QTextCharFormat()
-        self._fmt_stderr.setForeground(stderr_color)
+        self._fmt_stderr.setForeground(QColor(stderr_hex))
