@@ -49,19 +49,20 @@ def test_validate_model_file_rejects_missing(tmp_path: Path):
         validate_model_file(str(tmp_path / "missing.gguf"))
 
 
+def test_validate_port_available_detects_listening_server():
+    """When something is listening, validate_port_available must return False."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        assert validate_port_available("127.0.0.1", port) is False
+
+
 def test_validate_port_available_finds_free_port():
-    """An unbound port is reported as available."""
-    with socket.socket() as s:
+    """When nothing is listening, validate_port_available must return True."""
+    # Find a port, close it, then ask the validator. Refusal means free.
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    # Port is now held, but only by this socket — we need a different one.
-    # Use a clearly-out-of-range port to avoid flakiness.
-    free_port = 1  # privileged; will be unavailable on most systems
-    # Better: use socket() with port 0 to find a free port, then close it
-    with socket.socket() as s2:
-        s2.bind(("127.0.0.1", 0))
-        free_port = s2.getsockname()[1]
-    # free_port is still in TIME_WAIT — we cannot reliably test "available".
-    # Instead just check the function returns a bool without raising.
-    result = validate_port_available("127.0.0.1", free_port)
-    assert isinstance(result, bool)
+    # Port is now closed; the connect probe should be refused.
+    assert validate_port_available("127.0.0.1", port) is True

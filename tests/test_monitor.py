@@ -50,6 +50,19 @@ def test_monitor_emits_process_gone_when_pid_invalid(qtbot):
     mon.stop()
 
 
+def test_monitor_process_gone_latches_once(qtbot):
+    """process_gone must fire at most once per start, not on every interval."""
+    gone_count = [0]
+    mon = _monitor_with_pid(99999)  # unlikely-to-exist PID
+    mon.process_gone.connect(lambda: gone_count.__setitem__(0, gone_count[0] + 1))
+    mon.start()
+    qtbot.waitUntil(lambda: gone_count[0] >= 1, timeout=3000)
+    # Let several ticks go by — gone signal must NOT keep firing.
+    qtbot.wait(250)
+    mon.stop()
+    assert gone_count[0] == 1
+
+
 def test_monitor_handles_missing_pynvml_gracefully(qtbot, monkeypatch):
     """If pynvml import fails, gpu fields are None — no exception."""
     import llama_app.core.monitor as monitor_mod

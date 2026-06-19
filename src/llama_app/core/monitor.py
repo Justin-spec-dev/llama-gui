@@ -9,6 +9,7 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Callable
 
+import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
 
 
@@ -42,6 +43,10 @@ class ResourceMonitor(QObject):
         self._timer: QTimer | None = None
         self._pynvml = None
         self._nvml_handle = None
+        # Latched once we see the process disappear so we don't keep re-emitting
+        # ``process_gone`` on every interval (race between ``pid_exists`` and
+        # ``Process(pid)``).
+        self._gone_emitted = False
         try:
             self._pynvml = _init_nvml()
             self._nvml_handle = self._pynvml.nvmlDeviceGetHandleByIndex(0)
@@ -52,6 +57,9 @@ class ResourceMonitor(QObject):
     def start(self) -> None:
         if self._timer:
             return
+        # Reset the latched "process gone" flag so a fresh start can re-detect
+        # disappearance.
+        self._gone_emitted = False
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._sample)
         self._timer.start(self._interval_ms)
@@ -64,23 +72,26 @@ class ResourceMonitor(QObject):
             self._timer = None
 
     def _sample(self) -> None:
-        import psutil
-
         pid = self._get_pid()
         cpu_total = psutil.cpu_percent()
         mem_total_gb = psutil.virtual_memory().used / (1024 ** 3)
         cpu_proc: float | None = None
         mem_proc_gb: float | None = None
 
-        if pid is not None and psutil.pid_exists(pid):
-            try:
-                p = psutil.Process(pid)
-                cpu_proc = p.cpu_percent()
-                mem_proc_gb = p.memory_info().rss / (1024 ** 3)
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+        # If we already know the process is gone, skip per-process probes and
+        # don't re-emit — the consumer only needs the signal once.
+        if pid is not None and not self._gone_emitted:
+            if psutil.pid_exists(pid):
+                try:
+                    p = psutil.Process(pid)
+                    cpu_proc = p.cpu_percent()
+                    mem_proc_gb = p.memory_info().rss / (1024 ** 3)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    self._gone_emitted = True
+                    self.process_gone.emit()
+            else:
+                self._gone_emitted = True
                 self.process_gone.emit()
-        elif pid is not None and not psutil.pid_exists(pid):
-            self.process_gone.emit()
 
         gpu_util: float | None = None
         vram_gb: float | None = None

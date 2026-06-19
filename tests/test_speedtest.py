@@ -76,6 +76,31 @@ def test_speed_tester_returns_valid_result(qtbot, fake_server):
     assert result_holder["tokens_per_sec"] > 0
 
 
+def test_speed_tester_tokens_per_sec_is_decode_only(qtbot, fake_server):
+    """tokens_per_sec must use the decode span (first→last token), not the full
+    request duration. With 5 tokens spaced 10ms apart, decode span ≈ 40ms,
+    giving ~100 tokens/sec — well above the wall-time rate of ~200/sec but
+    crucially NOT biased by prefill latency."""
+    port = fake_server
+    tester = SpeedTester()
+    result_holder: dict = {}
+
+    def on_finished(d):
+        result_holder.update(d)
+
+    tester.finished.connect(on_finished)
+    tester.run("127.0.0.1", port, None, "hello", max_tokens=10)
+
+    qtbot.waitUntil(lambda: bool(result_holder), timeout=10000)
+    assert "error" not in result_holder
+    tokens = result_holder["tokens"]
+    tps = result_holder["tokens_per_sec"]
+    # 4 decode intervals × 10ms = 40ms decode span → 4 / 0.04 = 100 tok/s.
+    # Allow a generous lower bound to stay stable under scheduler jitter.
+    assert tokens == 5
+    assert 30.0 <= tps <= 250.0, f"unexpected tokens_per_sec={tps}"
+
+
 def test_speed_tester_handles_connection_error(qtbot):
     tester = SpeedTester()
     failed: list[str] = []

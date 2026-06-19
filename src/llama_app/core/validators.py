@@ -32,16 +32,29 @@ def validate_mmproj_file(path: str) -> Path:
 
 
 def validate_port_available(host: str, port: int) -> bool:
-    """Return True if ``(host, port)`` can be bound (i.e. port appears free).
+    """Return True if ``(host, port)`` appears free for llama-server to bind.
 
-    Note: this is a best-effort check. A free port may become occupied between
-    the check and the actual llama-server start. llama-server itself will
-    report a clearer error in that case.
+    We attempt a connect() with a short timeout. If the connect succeeds,
+    something is already listening on that port — so it is *not* available.
+    If the connect is refused or times out, the port is treated as free.
+
+    Why not bind()? Binding with ``SO_REUSEADDR`` is unreliable on Windows: it
+    can succeed for ports that are actively in use by another socket (e.g.
+    TIME_WAIT, or another process that already bound first). A connect probe
+    better reflects "will llama-server actually be able to listen here?".
+
+    Note: this is still a best-effort TOCTOU check — the port may be claimed
+    between this call and llama-server's actual bind. llama-server itself
+    will report a clearer error in that case.
     """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.settimeout(0.5)
         try:
-            s.bind((host, port))
-        except OSError:
-            return False
-    return True
+            s.connect((host, port))
+        except (ConnectionRefusedError, socket.timeout, OSError):
+            # Refused / timed out / network unreachable => treat as free.
+            return True
+        except Exception:
+            return True
+        # connect() succeeded — something is already listening.
+        return False
