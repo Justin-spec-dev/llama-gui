@@ -8,27 +8,30 @@ _THEMES = ("light", "dark", "auto")
 
 # Shared structural styles — font sizes, spacing, padding NEVER change
 _BASE_QSS = """
-QWidget { font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif; }
+QWidget {
+    font-family: "Microsoft YaHei UI", "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 11.5pt;
+}
 QPushButton:focus, QComboBox:focus, QListWidget:focus, QCheckBox:focus { border: 1px solid $accent; }
 
 QTabWidget::pane { border: 1px solid $border; border-radius: 4px; margin-top: -1px; }
 QTabBar::tab { padding: 6px 16px; margin-right: 2px; border-top-left-radius: 4px; border-top-right-radius: 4px; min-width: 64px; }
 QTabBar::tab:selected { font-weight: bold; }
 
-QPushButton { border: 1px solid $border; border-radius: 3px; padding: 5px 12px; min-height: 22px; }
+QPushButton { border: 1px solid $border; border-radius: 4px; padding: 5px 14px; min-height: 30px; font-size: 12pt; }
 QPushButton:hover { border-color: $accent; }
 QPushButton:pressed { background: $press; }
 
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { border: 1px solid $border; border-radius: 3px; padding: 3px 6px; min-height: 20px; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { border: 1px solid $border; border-radius: 4px; padding: 3px 8px; min-height: 28px; font-size: 11.5pt; }
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border-color: $accent; }
 QComboBox QAbstractItemView { border: 1px solid $border; selection-background-color: $accent; }
 QComboBox::drop-down { border: none; padding-right: 4px; }
 QSpinBox::up-button, QDoubleSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::down-button { width: 16px; border-left: 1px solid $border; }
 
-QCheckBox { spacing: 6px; }
-QCheckBox::indicator { width: 15px; height: 15px; border: 1px solid $border; border-radius: 2px; }
+QCheckBox { spacing: 7px; font-size: 11.5pt; }
+QCheckBox::indicator { width: 17px; height: 17px; border: 1px solid $border; border-radius: 3px; }
 
-QGroupBox { border: 1px solid $border; border-radius: 4px; margin-top: 10px; padding-top: 12px; font-weight: bold; }
+QGroupBox { border: 1px solid $border; border-radius: 5px; margin-top: 12px; padding-top: 14px; font-size: 12pt; font-weight: 600; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 
 QToolBar { border-bottom: 1px solid $border; spacing: 4px; padding: 3px 6px; }
@@ -42,27 +45,28 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QTextEdit { border: 1px solid $border; border-radius: 3px; padding: 3px; }
 
 QListWidget { border: 1px solid $border; border-radius: 3px; padding: 2px; }
-QListWidget::item { padding: 2px 4px; }
+QListWidget::item { padding: 4px 6px; }
 QListWidget::item:selected { background: $accent; color: $selectedText; }
 
 QFrame#navigationRail { border-right: 1px solid $border; }
 QListWidget#navigationPages { border: none; background: transparent; padding: 0; }
-QListWidget#navigationPages::item { border-radius: 5px; padding: 10px 9px; margin: 2px 0; }
+QListWidget#navigationPages::item { border-radius: 6px; padding: 12px 10px; margin: 3px 0; font-size: 11.5pt; font-weight: 500; }
 QListWidget#navigationPages::item:selected { background: $navSelected; color: $navSelectedText; border-left: 3px solid $accent; }
 QListWidget#navigationPages::item:hover:!selected { background: $hoverSurface; }
 QFrame#resourceSummary { border: 1px solid $border; border-radius: 5px; }
-QLabel#resourceValue { background: transparent; }
+QLabel#resourceValue { background: transparent; font-size: 11pt; font-weight: 500; }
 
 QFrame#commandBar { border: 1px solid $border; border-radius: 5px; }
-QFrame#commandBar QLabel { background: transparent; }
-QLabel#modelSummary { color: $mutedText; }
+QFrame#commandBar QLabel { background: transparent; font-size: 11.5pt; }
+QLabel#modelSummary { color: $mutedText; font-size: 11pt; }
 QLabel#dirtyState { color: $warningText; font-weight: bold; }
-QLabel#serverState { border-radius: 10px; padding: 3px 9px; font-weight: bold; }
+QLabel#serverState { border-radius: 11px; padding: 4px 11px; font-size: 12pt; font-weight: 600; }
 QLabel#serverState[state="ready"] { color: $successText; background: $successSurface; }
 QLabel#serverState[state="error"] { color: $errorText; background: $errorSurface; }
 QLabel#serverState[state="starting"], QLabel#serverState[state="loading"] { color: $warningText; background: $warningSurface; }
 QLabel#serverState[state="stopped"] { color: $mutedText; background: $mutedSurface; }
-QLabel#sectionTitle { padding: 4px 0; }
+QLabel#sectionTitle { padding: 6px 0; font-size: 14pt; font-weight: 600; }
+QMenuBar, QMenu, QStatusBar { font-size: 11pt; }
 """
 
 _DARK_VARS = {

@@ -31,6 +31,14 @@ def test_navigation_items_keep_stable_keys(qtbot):
     assert rail.page_list.focusPolicy() != Qt.NoFocus
 
 
+def test_navigation_items_wrap_without_horizontal_scrolling(qtbot):
+    rail = NavigationRail()
+    qtbot.addWidget(rail)
+
+    assert rail.page_list.wordWrap()
+    assert rail.page_list.horizontalScrollBarPolicy() == Qt.ScrollBarAlwaysOff
+
+
 def test_navigation_rail_updates_resources_and_unavailable_values(qtbot):
     rail = NavigationRail()
     qtbot.addWidget(rail)
