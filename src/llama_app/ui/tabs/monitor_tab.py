@@ -1,19 +1,19 @@
 """Monitor tab: speed test + 4 live resource plots."""
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QStyle,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from llama_app.core.speedtest import SpeedTester
 from llama_app.ui.widgets.resource_plot import ResourcePlot
 
 
@@ -30,14 +30,13 @@ class MonitorTab(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self._tester = SpeedTester(self)
-        self._tester.finished.connect(self._on_test_finished)
-        self._tester.failed.connect(self._on_test_failed)
-
         # --- Speed test group ---
         self._prompt = QPlainTextEdit(_DEFAULT_PROMPT)
         self._prompt.setFixedHeight(80)
-        self._run_btn = QPushButton("▶ 开始测试")
+        self._run_btn = QPushButton(
+            self.style().standardIcon(QStyle.SP_MediaPlay), "开始测试"
+        )
+        self._run_btn.setAccessibleName("开始速度测试")
         self._run_btn.clicked.connect(self._on_run_clicked)
         self._result = QTextEdit()
         self._result.setReadOnly(True)
@@ -71,9 +70,22 @@ class MonitorTab(QWidget):
         outer.addWidget(plots_group, 1)
 
     def _on_run_clicked(self) -> None:
+        self.start_test_requested.emit()
+
+    def prompt_text(self) -> str:
+        return self._prompt.toPlainText()
+
+    def set_test_pending(self) -> None:
         self._run_btn.setEnabled(False)
         self._result.setPlainText("测试中…")
-        self.start_test_requested.emit()
+
+    def show_test_result(self, result: dict) -> None:
+        self._run_btn.setEnabled(True)
+        self._result.setPlainText(_RESULT_TEMPLATE.format(**result))
+
+    def show_test_error(self, message: str) -> None:
+        self._run_btn.setEnabled(True)
+        self._result.setPlainText(f"测试失败: {message}")
 
     def update_samples(self, samples: list[dict]) -> None:
         if not samples:
@@ -85,9 +97,7 @@ class MonitorTab(QWidget):
         self._plot_gpu.push(latest.get("gpu_util"))
 
     def _on_test_finished(self, result: dict) -> None:
-        self._run_btn.setEnabled(True)
-        self._result.setPlainText(_RESULT_TEMPLATE.format(**result))
+        self.show_test_result(result)
 
     def _on_test_failed(self, msg: str) -> None:
-        self._run_btn.setEnabled(True)
-        self._result.setPlainText(f"测试失败: {msg}")
+        self.show_test_error(msg)

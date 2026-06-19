@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from llama_app.ui.widgets.config_page import SectionTitle
 
 _REASONING_OPTS = ["(默认 auto)", "auto", "on", "off"]
 
@@ -76,11 +77,13 @@ class SamplingTab(QWidget):
         self.reasoning_budget.setToolTip("推理 token 预算 (--reasoning-budget)\n\n限制思考过程使用的最大 token 数\n-1 = 无限制, 0 = 立即结束思考\n对支持思考的模型有效")
 
         form = QFormLayout()
+        form.addRow(SectionTitle("核心采样", "控制生成长度、随机性和候选词范围"))
         form.addRow("n-predict (-n):", self.n_predict)
         form.addRow("temperature (--temp):", self.temp)
         form.addRow("top-k (--top-k):", self.top_k)
         form.addRow("top-p (--top-p):", self.top_p)
         form.addRow("min-p (--min-p):", self.min_p)
+        form.addRow(SectionTitle("惩罚与推理", "减少重复并配置推理模型行为"))
         form.addRow("repeat-penalty:", self.repeat_penalty)
         form.addRow("repeat-last-n:", self.repeat_last_n)
         form.addRow("presence-penalty:", self.presence)

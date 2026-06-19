@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from llama_app.ui.widgets.config_page import SectionTitle
 
 
 class NetworkTab(QWidget):
@@ -23,6 +24,7 @@ class NetworkTab(QWidget):
         self.port = QSpinBox(); self.port.setRange(0, 65535); self.port.setValue(0); self.port.setSpecialValueText("(默认 8080)")
         self.port.setToolTip("监听端口 (--port)\n\n服务器监听的端口号\nllama 默认: 8080")
         self.api_key = QLineEdit(); self.api_key.setEchoMode(QLineEdit.Password)
+        self.api_key.setAccessibleName("API 密钥")
         self.api_key.setPlaceholderText("(可选，llama 默认: 无)")
         self.api_key.setToolTip("API 密钥 (--api-key)\n\n设置后，所有 API 请求需要携带此密钥\n用于防止未授权访问，支持逗号分隔的多个密钥\nllama 默认: 无")
         self.enable_ui = QCheckBox("禁用内置 Web UI（llama 默认: 启用）")
@@ -44,8 +46,10 @@ class NetworkTab(QWidget):
         self.jinja.toggled.connect(lambda _v: self.changed.emit())
 
         form = QFormLayout()
+        form.addRow(SectionTitle("监听设置", "配置服务器绑定地址和端口"))
         form.addRow("host (--host):", self.host)
         form.addRow("port (--port):", self.port)
+        form.addRow(SectionTitle("访问控制与端点", "管理认证、Web UI 和指标端点"))
         form.addRow("api-key (--api-key):", self.api_key)
         form.addRow(self.enable_ui)
         form.addRow(self.metrics)

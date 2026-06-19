@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from llama_app.ui.widgets.config_page import SectionTitle
 
 _CACHE_TYPES = ["f16", "f32", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"]
 _FLASH_OPTS = ["auto", "on", "off"]
@@ -60,6 +61,7 @@ class PerformanceTab(QWidget):
         self.cont_batching.toggled.connect(lambda _v: self.changed.emit())
 
         form = QFormLayout()
+        form.addRow(SectionTitle("计算与并行", "配置 GPU 卸载、上下文和批处理"))
         form.addRow("ngl (--n-gpu-layers):", self.ngl)
         form.addRow("n-cpu-moe (--n-cpu-moe):", self.ncmoe)
         form.addRow("ctx-size (-c):", self.ctx)
@@ -67,6 +69,7 @@ class PerformanceTab(QWidget):
         form.addRow("threads-batch (-tb):", self.threads_batch)
         form.addRow("batch-size (-b):", self.batch)
         form.addRow("ubatch-size (-ub):", self.ubatch)
+        form.addRow(SectionTitle("缓存与内存", "调整 KV 缓存和内存映射策略"))
         form.addRow("cache-type-k (-ctk):", self.ctk)
         form.addRow("cache-type-v (-ctv):", self.ctv)
         form.addRow("flash-attn (-fa):", self.flash)

@@ -36,6 +36,13 @@ class PresetsTab(QWidget):
         self._save_btn = QPushButton("保存当前为预设…")
         self._rename_btn = QPushButton("重命名…")
         self._delete_btn = QPushButton("删除")
+        for button, name in (
+            (self._load_btn, "加载选中的预设"),
+            (self._save_btn, "保存当前配置为预设"),
+            (self._rename_btn, "重命名选中的预设"),
+            (self._delete_btn, "删除选中的预设"),
+        ):
+            button.setAccessibleName(name)
 
         self._load_btn.clicked.connect(self._on_load_clicked)
         self._save_btn.clicked.connect(self._on_save_clicked)

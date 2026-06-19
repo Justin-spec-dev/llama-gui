@@ -7,7 +7,7 @@ from llama_app.core.config import Config, ConfigBuilder
 
 
 def test_config_minimal_required_fields():
-    """Config requires only server_path and model_path to be non-None."""
+    """Config requires only nonblank server_path and model_path values."""
     cfg = Config(server_path="C:/llama/llama-server.exe", model_path="C:/models/qwen.gguf")
     assert cfg.server_path == "C:/llama/llama-server.exe"
     assert cfg.model_path == "C:/models/qwen.gguf"
@@ -73,3 +73,25 @@ def test_config_to_args_string_enum():
     args = ConfigBuilder.to_args(cfg)
     assert "--flash-attn" in args
     assert "on" in args
+
+
+@pytest.mark.parametrize("field", ["server_path", "model_path"])
+def test_config_validate_rejects_blank_required_paths(field):
+    values = {"server_path": "server.exe", "model_path": "model.gguf"}
+    values[field] = "   "
+    cfg = Config(**values)
+
+    with pytest.raises(ValueError, match=field):
+        cfg.validate()
+
+
+def test_config_validate_rejects_ubatch_larger_than_batch():
+    cfg = Config(
+        server_path="server.exe",
+        model_path="model.gguf",
+        batch_size=128,
+        ubatch_size=256,
+    )
+
+    with pytest.raises(ValueError, match="ubatch_size"):
+        cfg.validate()

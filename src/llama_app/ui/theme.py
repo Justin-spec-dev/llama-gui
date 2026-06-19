@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSettings
-from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
 _THEMES = ("light", "dark", "auto")
 
 # Shared structural styles — font sizes, spacing, padding NEVER change
 _BASE_QSS = """
-QWidget { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+QWidget { font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif; }
+QPushButton:focus, QComboBox:focus, QListWidget:focus, QCheckBox:focus { border: 1px solid $accent; }
 
 QTabWidget::pane { border: 1px solid $border; border-radius: 4px; margin-top: -1px; }
 QTabBar::tab { padding: 6px 16px; margin-right: 2px; border-top-left-radius: 4px; border-top-right-radius: 4px; min-width: 64px; }
@@ -44,6 +44,25 @@ QTextEdit { border: 1px solid $border; border-radius: 3px; padding: 3px; }
 QListWidget { border: 1px solid $border; border-radius: 3px; padding: 2px; }
 QListWidget::item { padding: 2px 4px; }
 QListWidget::item:selected { background: $accent; color: $selectedText; }
+
+QFrame#navigationRail { border-right: 1px solid $border; }
+QListWidget#navigationPages { border: none; background: transparent; padding: 0; }
+QListWidget#navigationPages::item { border-radius: 5px; padding: 10px 9px; margin: 2px 0; }
+QListWidget#navigationPages::item:selected { background: $navSelected; color: $navSelectedText; border-left: 3px solid $accent; }
+QListWidget#navigationPages::item:hover:!selected { background: $hoverSurface; }
+QFrame#resourceSummary { border: 1px solid $border; border-radius: 5px; }
+QLabel#resourceValue { background: transparent; }
+
+QFrame#commandBar { border: 1px solid $border; border-radius: 5px; }
+QFrame#commandBar QLabel { background: transparent; }
+QLabel#modelSummary { color: $mutedText; }
+QLabel#dirtyState { color: $warningText; font-weight: bold; }
+QLabel#serverState { border-radius: 10px; padding: 3px 9px; font-weight: bold; }
+QLabel#serverState[state="ready"] { color: $successText; background: $successSurface; }
+QLabel#serverState[state="error"] { color: $errorText; background: $errorSurface; }
+QLabel#serverState[state="starting"], QLabel#serverState[state="loading"] { color: $warningText; background: $warningSurface; }
+QLabel#serverState[state="stopped"] { color: $mutedText; background: $mutedSurface; }
+QLabel#sectionTitle { padding: 4px 0; }
 """
 
 _DARK_VARS = {
@@ -51,6 +70,17 @@ _DARK_VARS = {
     "$accent": "#4a8abc",
     "$press": "#2a3a4a",
     "$selectedText": "#ffffff",
+    "$navSelected": "#1c3850",
+    "$navSelectedText": "#8dcaf0",
+    "$hoverSurface": "#2a2a3c",
+    "$mutedText": "#9292a2",
+    "$warningText": "#f0b45d",
+    "$successText": "#76d28a",
+    "$successSurface": "#203c2a",
+    "$errorText": "#ff8a8a",
+    "$errorSurface": "#482626",
+    "$warningSurface": "#45371f",
+    "$mutedSurface": "#292936",
 }
 
 _DARK_QSS = _BASE_QSS + """
@@ -73,11 +103,11 @@ QToolBar { background: #181824; }
 QScrollBar:vertical { background: #1c1c28; }
 QScrollBar::handle:vertical { background: #3a3a50; }
 QTextEdit { background: #14141e; color: #b0b0c0; }
-QStatusBar { background: #141421; color: #889; font-size: 13pt; }
-QMenuBar { background: #181824; color: #b0b0c0; font-size: 13pt; }
+QStatusBar { background: #141421; color: #889; }
+QMenuBar { background: #181824; color: #b0b0c0; }
 QMenuBar::item:selected { background: #2a2a3c; }
 QMenuBar::item { padding: 4px 10px; }
-QMenu { background: #222233; color: #c8c8d0; font-size: 13pt; }
+QMenu { background: #222233; color: #c8c8d0; }
 QMenu::item { padding: 5px 28px; }
 QMenu::item:selected { background: $accent; color: $selectedText; }
 QMenu { background: #222233; color: #c8c8d0; }
@@ -91,6 +121,17 @@ _LIGHT_VARS = {
     "$accent": "#3a7abf",
     "$press": "#d0d8e0",
     "$selectedText": "#ffffff",
+    "$navSelected": "#dceaf8",
+    "$navSelectedText": "#165f9e",
+    "$hoverSurface": "#e8eef5",
+    "$mutedText": "#667788",
+    "$warningText": "#8a5b00",
+    "$successText": "#237a3b",
+    "$successSurface": "#dff3e4",
+    "$errorText": "#a52b2b",
+    "$errorSurface": "#f8dfdf",
+    "$warningSurface": "#f7ecd1",
+    "$mutedSurface": "#e7e9ed",
 }
 
 _LIGHT_QSS = _BASE_QSS + """
@@ -113,11 +154,11 @@ QToolBar { background: #eeeeee; }
 QScrollBar:vertical { background: #f5f5f5; }
 QScrollBar::handle:vertical { background: #c0c0cc; }
 QTextEdit { background: #fafafa; color: #333; }
-QStatusBar { background: #eee; color: #888; font-size: 13pt; }
-QMenuBar { background: #eeeeee; color: #444; font-size: 13pt; }
+QStatusBar { background: #eee; color: #888; }
+QMenuBar { background: #eeeeee; color: #444; }
 QMenuBar::item:selected { background: #dce8f0; }
 QMenuBar::item { padding: 4px 10px; }
-QMenu { background: #ffffff; color: #333; font-size: 13pt; }
+QMenu { background: #ffffff; color: #333; }
 QMenu::item { padding: 5px 28px; }
 QMenu::item:selected { background: $accent; color: $selectedText; }
 QMenu { background: #ffffff; color: #333; }

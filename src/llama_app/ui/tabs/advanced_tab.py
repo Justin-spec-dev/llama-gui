@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QListWidget,
     QPushButton,
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from llama_app.ui.widgets.config_page import SectionTitle
 
 _SPLIT_MODES = ["(默认)", "layer", "none", "row", "tensor"]
 
@@ -35,6 +35,8 @@ class AdvancedTab(QWidget):
         self.lora_list = QListWidget()
         add_lora_btn = QPushButton("添加…")
         remove_lora_btn = QPushButton("移除")
+        add_lora_btn.setAccessibleName("添加 LoRA 适配器")
+        remove_lora_btn.setAccessibleName("移除选中的 LoRA 适配器")
         add_lora_btn.clicked.connect(self._on_add_lora)
         remove_lora_btn.clicked.connect(self._on_remove_lora)
         lora_row = QHBoxLayout()
@@ -50,6 +52,7 @@ class AdvancedTab(QWidget):
         self.hf_file = QLineEdit(); self.hf_file.setPlaceholderText("(可选)")
         self.hf_file.setToolTip("HuggingFace 指定文件 (--hf-file)\n\n指定仓库中的具体模型文件名\n留空则自动选择")
         self.hf_token = QLineEdit(); self.hf_token.setEchoMode(QLineEdit.Password)
+        self.hf_token.setAccessibleName("Hugging Face 访问令牌")
         self.hf_token.setToolTip("HuggingFace 访问令牌 (--hf-token)\n\n用于下载需要授权的模型（如 Llama）\n未设置时使用 HF_TOKEN 环境变量")
 
         self.timeout = QSpinBox(); self.timeout.setRange(0, 86_400); self.timeout.setValue(0); self.timeout.setSpecialValueText("(默认 3600s)")
@@ -95,10 +98,8 @@ class AdvancedTab(QWidget):
         outer.addLayout(form)
         outer.addStretch(1)
 
-    def _section(self, text: str) -> QLabel:
-        lbl = QLabel(f"<b>{text}</b>")
-        lbl.setStyleSheet("color: palette(mid);")
-        return lbl
+    def _section(self, text: str) -> SectionTitle:
+        return SectionTitle(text)
 
     def _on_add_lora(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(self, "选择 LoRA 适配器", "", "GGUF (*.gguf);;All files (*)")

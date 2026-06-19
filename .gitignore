@@ -44,3 +44,6 @@ build_artifacts/
 presets.json
 presets.json.bak
 *.log
+
+# Local design exploration
+.superpowers/

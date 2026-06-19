@@ -1,19 +1,12 @@
-"""Wraps ``QProcess`` to manage a llama-server child process.
-
-Provides:
-    * Start/stop with graceful termination (SIGTERM-equivalent, then SIGKILL).
-    * Streaming stdout/stderr into a Qt signal.
-    * State machine: STOPPED -> STARTING -> LOADING -> READY -> (STOPPED | ERROR).
-    * Optional /health polling to detect READY state.
-"""
+"""Asynchronous ``QProcess`` lifecycle management for llama-server."""
 from __future__ import annotations
 
-import os
 import time
+from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 
 class ServerState(str, Enum):
@@ -24,12 +17,25 @@ class ServerState(str, Enum):
     ERROR = "error"
 
 
+@dataclass(frozen=True)
+class LaunchSpec:
+    program: str
+    arguments: tuple[str, ...]
+    cwd: str | None
+    health_url: str | None
+    health_timeout_s: float
+
+
 class ServerProcess(QObject):
-    state_changed = Signal(str)  # ServerState.value
+    state_changed = Signal(str)
     log_received = Signal(str)
     pid_changed = Signal(int)
 
-    def __init__(self, parent: QObject | None = None):
+    def __init__(
+        self,
+        parent: QObject | None = None,
+        network_manager: QNetworkAccessManager | None = None,
+    ):
         super().__init__(parent)
         self._proc = QProcess(self)
         self._proc.readyReadStandardOutput.connect(self._on_stdout)
@@ -37,14 +43,18 @@ class ServerProcess(QObject):
         self._proc.errorOccurred.connect(self._on_error)
         self._proc.finished.connect(self._on_finished)
         self._proc.started.connect(self._on_started)
-        self._state: ServerState = ServerState.STOPPED
+        self._network_manager = network_manager or QNetworkAccessManager(self)
+        self._state = ServerState.STOPPED
         self._health_url: str | None = None
         self._health_timer: QTimer | None = None
-        self._health_deadline: float = 0.0
-        self._stderr_buf: str = ""
-        self._stdout_buf: str = ""
-
-    # --- public API ---
+        self._health_reply: QNetworkReply | None = None
+        self._health_deadline = 0.0
+        self._stderr_buf = ""
+        self._stdout_buf = ""
+        self._stop_requested = False
+        self._error_latched = False
+        self._pending_launch: LaunchSpec | None = None
+        self._launch_generation = 0
 
     @property
     def state(self) -> ServerState:
@@ -65,40 +75,63 @@ class ServerProcess(QObject):
         health_url: str | None = None,
         health_timeout_s: int = 30,
     ) -> None:
-        """Start the process. Optionally begin /health polling."""
+        """Start a process and optionally poll its health endpoint."""
         if self.is_running():
             raise RuntimeError("ServerProcess is already running")
+        spec = LaunchSpec(
+            program, tuple(arguments), cwd, health_url, health_timeout_s
+        )
+        self._launch_generation += 1
+        self._stop_requested = False
+        self._error_latched = False
         self._stderr_buf = ""
         self._stdout_buf = ""
+        self._cleanup_health()
+        self._health_url = spec.health_url
+        self._health_deadline = (
+            time.monotonic() + spec.health_timeout_s if spec.health_url else 0.0
+        )
+        self._proc.setWorkingDirectory(spec.cwd or "")
         self._set_state(ServerState.STARTING)
-        if cwd:
-            self._proc.setWorkingDirectory(cwd)
-        self._proc.start(program, arguments)
-        self._health_url = health_url
-        if health_url:
-            self._health_deadline = time.monotonic() + health_timeout_s
+        if spec.health_url:
             self._health_timer = QTimer(self)
             self._health_timer.timeout.connect(self._check_health)
             self._health_timer.start(500)
             self._set_state(ServerState.LOADING)
+        self._proc.start(spec.program, list(spec.arguments))
 
     def stop(self, timeout_ms: int = 5000) -> None:
-        """Politely terminate, then force-kill after ``timeout_ms``."""
+        """Request termination and schedule a non-blocking force-kill."""
         if not self.is_running():
             return
-        if self._health_timer:
-            self._health_timer.stop()
-            self._health_timer = None
+        self._stop_requested = True
+        self._cleanup_health()
+        generation = self._launch_generation
         self._proc.terminate()
-        if not self._proc.waitForFinished(timeout_ms):
-            self._proc.kill()
-            self._proc.waitForFinished(2000)
+        QTimer.singleShot(
+            timeout_ms, lambda: self._force_kill_if_running(generation)
+        )
+
+    def restart(
+        self,
+        program: str,
+        arguments: list[str],
+        cwd: str | None = None,
+        health_url: str | None = None,
+        health_timeout_s: int = 30,
+        stop_timeout_ms: int = 5000,
+    ) -> None:
+        """Replace the running process once its asynchronous stop completes."""
+        self._pending_launch = LaunchSpec(
+            program, tuple(arguments), cwd, health_url, health_timeout_s
+        )
+        if self.is_running():
+            self.stop(stop_timeout_ms)
+        else:
+            self._start_pending()
 
     def send_log_marker(self, marker: str) -> None:
-        """Echo a synthetic line into the log (for [CMD] banners)."""
         self.log_received.emit(marker)
-
-    # --- internal ---
 
     def _set_state(self, new: ServerState) -> None:
         if new != self._state:
@@ -110,7 +143,6 @@ class ServerProcess(QObject):
         if pid is not None:
             self.pid_changed.emit(pid)
         if not self._health_url:
-            # No health URL configured; treat started as ready.
             self._set_state(ServerState.READY)
 
     def _on_stdout(self) -> None:
@@ -118,7 +150,7 @@ class ServerProcess(QObject):
             "utf-8", errors="replace"
         )
         self._stdout_buf += chunk
-        for line in self._consume_lines(is_stderr=False):
+        for line in self._consume_lines(False):
             self.log_received.emit(line)
 
     def _on_stderr(self) -> None:
@@ -126,7 +158,7 @@ class ServerProcess(QObject):
             "utf-8", errors="replace"
         )
         self._stderr_buf += chunk
-        for line in self._consume_lines(is_stderr=True):
+        for line in self._consume_lines(True):
             self.log_received.emit(line)
 
     def _consume_lines(self, is_stderr: bool) -> list[str]:
@@ -135,46 +167,92 @@ class ServerProcess(QObject):
         lines: list[str] = []
         while "\n" in buf:
             line, buf = buf.split("\n", 1)
-            prefix = "[stderr] " if is_stderr else ""
-            lines.append(prefix + line)
+            lines.append(("[stderr] " if is_stderr else "") + line)
         setattr(self, buf_attr, buf)
         return lines
 
     def _on_error(self, err: QProcess.ProcessError) -> None:
         self.log_received.emit(f"[error] QProcess error: {err}")
+        if self._stop_requested and err != QProcess.FailedToStart:
+            return
+        self._error_latched = True
         self._set_state(ServerState.ERROR)
 
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
-        # Flush remaining buffer content
         for attr, is_stderr in (("_stdout_buf", False), ("_stderr_buf", True)):
             remaining = getattr(self, attr)
             if remaining:
-                prefix = "[stderr] " if is_stderr else ""
-                self.log_received.emit(prefix + remaining)
+                self.log_received.emit(
+                    ("[stderr] " if is_stderr else "") + remaining
+                )
                 setattr(self, attr, "")
-        self._set_state(ServerState.STOPPED)
+        self._cleanup_health()
+        if self._error_latched:
+            self._set_state(ServerState.ERROR)
+        elif self._stop_requested:
+            self._set_state(ServerState.STOPPED)
+        else:
+            self.log_received.emit(
+                f"[error] unexpected exit: code={exit_code}, status={exit_status}"
+            )
+            self._error_latched = True
+            self._set_state(ServerState.ERROR)
+        self.pid_changed.emit(0)
+        if self._pending_launch is not None:
+            QTimer.singleShot(0, self._start_pending)
+
+    def _force_kill_if_running(self, generation: int) -> None:
+        if generation == self._launch_generation and self.is_running():
+            self._proc.kill()
+
+    def _start_pending(self) -> None:
+        if self.is_running() or self._pending_launch is None:
+            return
+        spec = self._pending_launch
+        self._pending_launch = None
+        self.start(
+            spec.program,
+            list(spec.arguments),
+            spec.cwd,
+            spec.health_url,
+            spec.health_timeout_s,
+        )
+
+    def _cleanup_health(self) -> None:
         if self._health_timer:
             self._health_timer.stop()
+            self._health_timer.deleteLater()
             self._health_timer = None
-        self.pid_changed.emit(0)
+        if self._health_reply is not None:
+            reply = self._health_reply
+            self._health_reply = None
+            reply.abort()
+            reply.deleteLater()
 
     def _check_health(self) -> None:
         if not self._health_url:
             return
         if time.monotonic() > self._health_deadline:
-            self.log_received.emit("[health] timeout — server did not become ready")
+            self.log_received.emit("[health] timeout - server did not become ready")
+            self._error_latched = True
             self._set_state(ServerState.ERROR)
             self.stop()
             return
-        # Lazy import to avoid hard dep at module import time
-        import urllib.request
-        import urllib.error
+        if self._health_reply is not None:
+            return
+        request = QNetworkRequest(self._health_url)
+        request.setTransferTimeout(1000)
+        reply = self._network_manager.get(request)
+        self._health_reply = reply
+        reply.finished.connect(lambda: self._on_health_finished(reply))
 
-        try:
-            with urllib.request.urlopen(self._health_url, timeout=1) as r:
-                if 200 <= r.status < 300:
-                    self._set_state(ServerState.READY)
-                    if self._health_timer:
-                        self._health_timer.stop()
-        except (urllib.error.URLError, ConnectionError, OSError):
-            pass  # not ready yet
+    def _on_health_finished(self, reply: QNetworkReply) -> None:
+        if reply is not self._health_reply:
+            return
+        self._health_reply = None
+        status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+        reply.deleteLater()
+        if status is not None and 200 <= int(status) < 300:
+            self._set_state(ServerState.READY)
+            if self._health_timer:
+                self._health_timer.stop()

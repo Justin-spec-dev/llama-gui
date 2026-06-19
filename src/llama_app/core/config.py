@@ -84,7 +84,7 @@ class Config:
     lookup_cache_dynamic: str | None = None  # -lcd
 
     def validate(self) -> None:
-        """Raise ValueError on invalid enum values. Call before to_args()."""
+        """Validate enums, required nonblank paths, and cross-field relationships."""
         enum_checks = {
             "flash_attn": (self.flash_attn, {"on", "off", "auto"}),
             "reasoning": (self.reasoning, {"on", "off", "auto"}),
@@ -95,6 +95,17 @@ class Config:
         for name, (value, allowed) in enum_checks.items():
             if value is not None and value not in allowed:
                 raise ValueError(f"{name}={value!r} not in {sorted(allowed)}")
+
+        if not self.server_path.strip():
+            raise ValueError("server_path is required")
+        if not self.model_path.strip():
+            raise ValueError("model_path is required")
+        if (
+            self.batch_size is not None
+            and self.ubatch_size is not None
+            and self.ubatch_size > self.batch_size
+        ):
+            raise ValueError("ubatch_size must be less than or equal to batch_size")
 
 
 class ConfigBuilder:

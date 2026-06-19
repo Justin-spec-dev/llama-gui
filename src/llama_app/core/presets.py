@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,6 +16,10 @@ from .config import Config
 
 
 PRESETS_VERSION = 1
+
+
+class UnsupportedPresetVersionError(ValueError):
+    """Raised when mutations are attempted on an unsupported preset schema."""
 
 
 @dataclass
@@ -47,6 +51,8 @@ class PresetStore:
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path) if path is not None else default_path()
+        self.recovery_notice: str | None = None
+        self._writable = True
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self._presets: dict[str, Preset] = {}
@@ -55,21 +61,58 @@ class PresetStore:
         try:
             raw = self.path.read_text(encoding="utf-8")
             data = json.loads(raw)
-        except json.JSONDecodeError as e:
-            backup = self.path.with_suffix(self.path.suffix + ".bak")
-            self.path.replace(backup)
-            raise ValueError(
-                f"Presets file is corrupt: {self.path}. Backed up to {backup}. "
-                f"Original error: {e}"
-            ) from e
-        self._presets = {
-            entry["name"]: Preset(
-                name=entry["name"],
-                config=Config(**entry["config"]),
-                updated_at=entry["updated_at"],
-            )
-            for entry in data.get("presets", [])
-        }
+            if not isinstance(data, dict):
+                raise ValueError("presets file root must be an object")
+            version = data.get("version")
+            if type(version) is not int or version != PRESETS_VERSION:
+                self._presets = {}
+                self._writable = False
+                self.recovery_notice = (
+                    f"Unsupported presets schema version {version!r}; "
+                    f"expected {PRESETS_VERSION}. The presets file was left unchanged."
+                )
+                return
+            entries = data["presets"]
+            if not isinstance(entries, list):
+                raise ValueError("presets must be a list")
+            loaded: dict[str, Preset] = {}
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    raise ValueError("each preset must be an object")
+                name = entry["name"]
+                config_data = entry["config"]
+                updated_at = entry["updated_at"]
+                if not isinstance(name, str) or not name:
+                    raise ValueError("preset name must be a non-empty string")
+                if name in loaded:
+                    raise ValueError(f"duplicate preset name: {name}")
+                if not isinstance(config_data, dict):
+                    raise ValueError("preset config must be an object")
+                if not isinstance(updated_at, str):
+                    raise ValueError("preset updated_at must be a string")
+                config = Config(**config_data)
+                try:
+                    config.validate()
+                except Exception as e:
+                    raise ValueError(f"invalid config for preset {name!r}: {e}") from e
+                loaded[name] = Preset(name, config, updated_at)
+            self._presets = loaded
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+            self._recover(e)
+
+    def _recover(self, error: Exception) -> None:
+        backup = self.path.with_suffix(self.path.suffix + ".bak")
+        index = 0
+        while backup.exists():
+            index += 1
+            backup = self.path.with_suffix(self.path.suffix + f".bak.{index}")
+        self.path.replace(backup)
+        self.recovery_notice = (
+            f"Presets file was recovered. Backed up to {backup}. "
+            f"Original error: {error}"
+        )
+        self._presets = {}
+        self._save_atomic()
 
     def list(self) -> list[Preset]:
         return sorted(self._presets.values(), key=lambda p: p.name.lower())
@@ -79,27 +122,52 @@ class PresetStore:
             raise KeyError(f"Preset '{name}' not found")
         return self._presets[name]
 
+    @staticmethod
+    def _sanitize(presets: dict[str, Preset]) -> dict[str, Preset]:
+        return {
+            name: replace(
+                preset,
+                config=replace(preset.config, api_key=None, hf_token=None),
+            )
+            for name, preset in presets.items()
+        }
+
+    def _commit(self, candidate: dict[str, Preset]) -> None:
+        sanitized = self._sanitize(candidate)
+        self._save_atomic(sanitized)
+        self._presets = sanitized
+
+    def _ensure_writable(self) -> None:
+        if not self._writable:
+            raise UnsupportedPresetVersionError(self.recovery_notice)
+
     def save(self, preset: Preset) -> None:
-        self._presets[preset.name] = preset
-        self._save_atomic()
+        self._ensure_writable()
+        candidate = dict(self._presets)
+        candidate[preset.name] = preset
+        self._commit(candidate)
 
     def delete(self, name: str) -> None:
+        self._ensure_writable()
         if name not in self._presets:
             raise KeyError(f"Preset '{name}' not found")
-        del self._presets[name]
-        self._save_atomic()
+        candidate = dict(self._presets)
+        del candidate[name]
+        self._commit(candidate)
 
     def rename(self, old: str, new: str) -> None:
+        self._ensure_writable()
         if old not in self._presets:
             raise KeyError(f"Preset '{old}' not found")
         if new in self._presets:
             raise ValueError(f"Preset '{new}' already exists")
-        p = self._presets.pop(old)
-        p.name = new
-        self._presets[new] = p
-        self._save_atomic()
+        candidate = dict(self._presets)
+        p = candidate.pop(old)
+        candidate[new] = replace(p, name=new)
+        self._commit(candidate)
 
-    def _save_atomic(self) -> None:
+    def _save_atomic(self, presets: dict[str, Preset] | None = None) -> None:
+        target = self._presets if presets is None else presets
         payload = {
             "version": PRESETS_VERSION,
             "presets": [
@@ -108,7 +176,7 @@ class PresetStore:
                     "config": asdict(p.config),
                     "updated_at": p.updated_at,
                 }
-                for p in self._presets.values()
+                for p in target.values()
             ],
         }
         # Atomic write: write to temp file in same dir, then rename.
